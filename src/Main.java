@@ -1,5 +1,7 @@
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello world!");
+        GUI userInterface = new GUI();
+        Lexer lexer = new Lexer();
+        Controller controller = new Controller(userInterface, lexer);
     }
 }
