@@ -1,0 +1,6 @@
+code {
+	int x;
+	x = 5;
+	scan(x);
+	print(x);
+}

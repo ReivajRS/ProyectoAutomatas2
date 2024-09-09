@@ -1,0 +1,15 @@
+code A {
+	int x;
+	scan(x);
+	scan(x);
+	print(x);
+	x = x + 1;
+	if (x + 1) {
+		int y;
+		y = 0;
+		while (y < 100) {
+			print(y);
+			y = y + 1;
+		}
+	}
+}

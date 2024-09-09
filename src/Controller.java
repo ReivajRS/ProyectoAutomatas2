@@ -22,8 +22,8 @@ public class Controller implements ActionListener, KeyListener {
 
     private void setListeners() {
         userInterface.getCodeArea().addKeyListener(this);
-        userInterface.getTokensArea().addKeyListener(this);
         userInterface.getScannerButton().addActionListener(this);
+        userInterface.getParserButton().addActionListener(this);
         userInterface.getMenuFileOpen().addActionListener(this);
         userInterface.getMenuFileSave().addActionListener(this);
     }
@@ -32,23 +32,22 @@ public class Controller implements ActionListener, KeyListener {
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == userInterface.getScannerButton()) {
             String input = userInterface.getCodeArea().getText();
-            /*
-            Scan 1
-            String[] inputArray = input.split("\\s+");
-            Token[] tokens = lexer.scan(inputArray);
+            lexer.scan(input);
+            ArrayList<String> strings = lexer.getStrings();
+            ArrayList<Token> tokens = lexer.getTokens();
             Boolean[] reservedWords = lexer.checkReservedWords(tokens);
-            userInterface.showTokens(inputArray, tokens, reservedWords);
-             */
+            userInterface.showTokens(strings, tokens, reservedWords);
+            userInterface.setParserButtonState(true);
+        }
 
-            // Scan 2
-            Pair<ArrayList<String>, ArrayList<Token>> lexerResult = lexer.scan2(input);
-            Boolean[] reservedWords = lexer.checkReservedWords2(lexerResult.getSecond());
-            userInterface.showTokens2(lexerResult.getFirst(), lexerResult.getSecond(), reservedWords);
+        if (e.getSource() == userInterface.getParserButton()) {
+            Parser parser = new Parser(lexer.getTokens());
+            userInterface.showParserResult(parser.parse());
         }
 
         if (e.getSource() == userInterface.getMenuFileOpen()) {
             int option = userInterface.getFileChooser().showOpenDialog(userInterface);
-            if(option == JFileChooser.APPROVE_OPTION){
+            if (option == JFileChooser.APPROVE_OPTION) {
                 File file = userInterface.getFileChooser().getSelectedFile();
                 try {
                     Scanner sc = new Scanner(file);
@@ -57,6 +56,7 @@ public class Controller implements ActionListener, KeyListener {
                         stringBuilder.append(sc.nextLine()).append("\n");
                     }
                     userInterface.getCodeArea().setText(stringBuilder.toString());
+                    userInterface.setParserButtonState(false);
                 } catch (FileNotFoundException ex) {
                     userInterface.showWarning("The file was not found");
                 }
@@ -85,7 +85,7 @@ public class Controller implements ActionListener, KeyListener {
 
     @Override
     public void keyTyped(KeyEvent e) {
-
+        userInterface.setParserButtonState(false);
     }
 
     @Override
