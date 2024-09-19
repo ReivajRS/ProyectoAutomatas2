@@ -1,3 +1,5 @@
+package Utilities;
+
 public enum Token {
     SEMICOLON, OP_PAREN, CL_PAREN, OP_CURLY, CL_CURLY,
     ASSIGN, PLUS, MINUS,

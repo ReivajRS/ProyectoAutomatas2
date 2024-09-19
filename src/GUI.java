@@ -1,10 +1,12 @@
+import Utilities.Token;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 
 public class GUI extends JFrame {
-    private JTextArea codeArea, tokensArea, parserArea;
-    private JButton scannerButton, parserButton;
+    private JTextArea codeArea, tokensArea, parserArea, semanticArea;
+    private JButton scannerButton, parserButton, semanticButton;
     private JMenuBar menuBar;
     private JMenu menuFile;
     private JMenuItem menuFileOpen, menuFileSave;
@@ -12,9 +14,11 @@ public class GUI extends JFrame {
     private final int WIDTH = 1500, HEIGHT = 800;
     private final Rectangle CODE_PANEL_DIMENSIONS = new Rectangle(50, 50, 600, 500);
     private final Rectangle TOKENS_PANEL_DIMENSIONS = new Rectangle(800, 50, 300, 500);
-    private final Rectangle PARSER_PANEL_DIMENSIONS = new Rectangle(1150, 50, 300, 150);
-    private final Rectangle SCANNER_BUTTON_DIMENSIONS = new Rectangle(670, 100, 100, 30);
-    private final Rectangle PARSER_BUTTON_DIMENSIONS = new Rectangle(670, 150, 100, 30);
+    private final Rectangle PARSER_PANEL_DIMENSIONS = new Rectangle(1170, 50, 300, 150);
+    private final Rectangle SEMANTIC_PANEL_DIMENSIONS = new Rectangle(1170, 250, 300, 150);
+    private final Rectangle SCANNER_BUTTON_DIMENSIONS = new Rectangle(670, 100, 120, 30);
+    private final Rectangle PARSER_BUTTON_DIMENSIONS = new Rectangle(670, 150, 120, 30);
+    private final Rectangle SEMANTIC_BUTTON_DIMENSIONS = new Rectangle(670, 200, 120, 30);
 
     public GUI() {
         makeInterface();
@@ -84,6 +88,21 @@ public class GUI extends JFrame {
         parserArea.setTabSize(2);
         parserArea.setFont(new Font("Courier New", Font.PLAIN, 20));
 
+        JLabel semanticLabel = new JLabel("Semantic result", JLabel.CENTER);
+        semanticLabel.setForeground(Color.WHITE);
+        semanticLabel.setFont(new Font("Dialog", Font.BOLD, 16));
+        semanticArea = new JTextArea();
+        JScrollPane semanticScroll = new JScrollPane(semanticArea);
+        JPanel semanticPanel = new JPanel(new BorderLayout());
+        semanticPanel.setBounds(SEMANTIC_PANEL_DIMENSIONS);
+        semanticPanel.setBackground(Color.DARK_GRAY);
+        semanticArea.setEditable(false);
+        semanticPanel.add(semanticLabel, BorderLayout.NORTH);
+        semanticPanel.add(semanticScroll, BorderLayout.CENTER);
+
+        semanticArea.setTabSize(2);
+        semanticArea.setFont(new Font("Courier New", Font.PLAIN, 20));
+
         scannerButton = new JButton("Scanner");
         scannerButton.setBounds(SCANNER_BUTTON_DIMENSIONS);
         scannerButton.setFont(new Font("Dialog", Font.BOLD, 16));
@@ -93,11 +112,18 @@ public class GUI extends JFrame {
         parserButton.setFont(new Font("Dialog", Font.BOLD, 16));
         parserButton.setEnabled(false);
 
+        semanticButton = new JButton("Semantic");
+        semanticButton.setBounds(SEMANTIC_BUTTON_DIMENSIONS);
+        semanticButton.setFont(new Font("Dialog", Font.BOLD, 16));
+        semanticButton.setEnabled(false);
+
         add(codePanel);
         add(tokensPanel);
         add(parserPanel);
+        add(semanticPanel);
         add(scannerButton);
         add(parserButton);
+        add(semanticButton);
     }
 
     public void showTokens(ArrayList<String> strings, ArrayList<Token> tokens, Boolean[] reservedWords) {
@@ -111,12 +137,32 @@ public class GUI extends JFrame {
         tokensArea.setText(stringBuilder.toString());
     }
 
+    public void showParserResult(boolean result) {
+        parserArea.setText(result ? "Program OK" : "Syntax error");
+    }
+
+    public void showSemanticResult(boolean result) {
+        semanticArea.setText(result ? "Program OK" : "Semantic error");
+    }
+
+    public void clearTokens() {
+        tokensArea.setText("");
+    }
+
+    public void clearParserResult() {
+        parserArea.setText("");
+    }
+
+    public void clearSemanticResult() {
+        semanticArea.setText("");
+    }
+
     public void setParserButtonState(boolean state) {
         parserButton.setEnabled(state);
     }
 
-    public void showParserResult(boolean result) {
-        parserArea.setText(result ? "Program OK" : "Syntax error");
+    public void setSemanticButtonState(boolean state) {
+        semanticButton.setEnabled(state);
     }
 
     public void showWarning(String message) {
@@ -133,6 +179,10 @@ public class GUI extends JFrame {
 
     public JButton getParserButton() {
         return parserButton;
+    }
+
+    public JButton getSemanticButton() {
+        return semanticButton;
     }
 
     public JMenuItem getMenuFileOpen() {

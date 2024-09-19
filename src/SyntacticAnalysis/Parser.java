@@ -1,21 +1,34 @@
+package SyntacticAnalysis;
+
+import Utilities.Token;
+
 import java.util.ArrayList;
 
 public class Parser {
-    private final Token[] tokens;
-    private final int numTokens;
-    private final int ERROR;
+    private static int ERROR;
+    private Token[] tokens;
+    private String[] strings;
+    private int numTokens;
+    private AbstractSyntaxTree syntaxTree;
 
-    public Parser(ArrayList<Token> tokens) {
+    public Parser() {
+        ERROR = -1;
+    }
+
+    public void initialize(ArrayList<Token> tokens, ArrayList<String> strings) {
         this.tokens = new Token[tokens.size()];
+        this.strings = new String[strings.size()];
         for (int i = 0; i < tokens.size(); i++) {
             this.tokens[i] = tokens.get(i);
+            this.strings[i] = strings.get(i);
         }
         numTokens = tokens.size();
-        ERROR = -1;
     }
 
     public boolean parse() {
         int i = 0;
+        Node.Code node = new Node.Code(i);
+        syntaxTree = new AbstractSyntaxTree(node);
         if (outOfBounds(i) || tokens[i] != Token.CODE) {
             return false;
         }
@@ -23,6 +36,7 @@ public class Parser {
         if (outOfBounds(i) || tokens[i] != Token.IDENTIFIER) {
             return false;
         }
+        node.setId(strings[i]);
         i++;
         if (outOfBounds(i) || tokens[i] != Token.OP_CURLY) {
             return false;
@@ -35,7 +49,7 @@ public class Parser {
         if (outOfBounds(i) || tokens[i] != Token.CL_CURLY) {
             return false;
         }
-        i++;
+        node.setEnd(i);
         return true;
     }
 
@@ -44,7 +58,6 @@ public class Parser {
         if (ii == ERROR) {
             return ERROR;
         }
-        System.out.println(tokens[i]);
         i = ii;
         if (!outOfBounds(i) && isReservedWord(tokens[i])) {
             ii = checkInstructions(i);
@@ -58,50 +71,77 @@ public class Parser {
 
     private int checkInstruction(int i) {
         int ii = checkDeclaration(i);
-        ii = Math.max(ii, checkAssignment(i));
-        ii = Math.max(ii, checkScanOrPrint(i));
         if (ii != ERROR) {
-            i = ii;
-            if (outOfBounds(i) || tokens[i] != Token.SEMICOLON) {
-                return ERROR;
-            }
-            i++;
-            return i;
+            return ii;
+        }
+        ii = checkAssignment(i);
+        if (ii != ERROR) {
+            return ii;
+        }
+        ii = checkScanOrPrint(i);
+        if (ii != ERROR) {
+            return ii;
         }
         ii = checkIfOrWhile(i);
-        if (ii == ERROR) {
-            return ERROR;
+        if (ii != ERROR) {
+            return ii;
         }
-        i = ii;
-        return i;
+        return ERROR;
     }
 
     private int checkDeclaration(int i) {
+        Node.Declaration node = new Node.Declaration(i);
+        syntaxTree.addChild(node, false);
         if (outOfBounds(i) || !isDataType(tokens[i])) {
+            syntaxTree.removeChild();
             return ERROR;
         }
+        node.setDataType(tokens[i]);
         i++;
         if (outOfBounds(i) || tokens[i] != Token.IDENTIFIER) {
+            syntaxTree.removeChild();
             return ERROR;
         }
+        node.setId(strings[i]);
+        i++;
+        if (outOfBounds(i) || tokens[i] != Token.SEMICOLON) {
+            syntaxTree.removeChild();
+            return ERROR;
+        }
+        node.setEnd(i);
         i++;
         return i;
     }
 
     private int checkAssignment(int i) {
+        Node.Assignment node = new Node.Assignment(i);
+        syntaxTree.addChild(node, false);
         if (outOfBounds(i) || tokens[i] != Token.IDENTIFIER) {
+            syntaxTree.removeChild();
             return ERROR;
         }
+        node.setId(strings[i]);
         i++;
         if (outOfBounds(i) || tokens[i] != Token.ASSIGN) {
+            syntaxTree.removeChild();
             return ERROR;
         }
         i++;
+        syntaxTree.setCurrentNode(node);
         int ii = checkExpression(i);
         if (ii == ERROR) {
+            syntaxTree.toParent();
+            syntaxTree.removeChild();
             return ERROR;
         }
+        syntaxTree.toParent();
         i = ii;
+        if (outOfBounds(i) || tokens[i] != Token.SEMICOLON) {
+            syntaxTree.removeChild();
+            return ERROR;
+        }
+        node.setEnd(i);
+        i++;
         return i;
     }
 
@@ -109,18 +149,36 @@ public class Parser {
         if (outOfBounds(i) || (tokens[i] != Token.SCAN && tokens[i] != Token.PRINT)) {
             return ERROR;
         }
+        Node node;
+        if (tokens[i] == Token.SCAN) {
+            node = new Node.Scan(i);
+        }
+        else {
+            node = new Node.Print(i);
+        }
+        syntaxTree.addChild(node, false);
         i++;
         if (outOfBounds(i) || tokens[i] != Token.OP_PAREN){
+            syntaxTree.removeChild();
             return ERROR;
         }
         i++;
         if (outOfBounds(i) || tokens[i] != Token.IDENTIFIER){
+            syntaxTree.removeChild();
+            return ERROR;
+        }
+        node.setId(strings[i]);
+        i++;
+        if (outOfBounds(i) || tokens[i] != Token.CL_PAREN){
+            syntaxTree.removeChild();
             return ERROR;
         }
         i++;
-        if (outOfBounds(i) || tokens[i] != Token.CL_PAREN){
+        if (outOfBounds(i) || tokens[i] != Token.SEMICOLON) {
+            syntaxTree.removeChild();
             return ERROR;
         }
+        node.setEnd(i);
         i++;
         return i;
     }
@@ -129,21 +187,37 @@ public class Parser {
         if (outOfBounds(i) || (tokens[i] != Token.IF && tokens[i] != Token.WHILE)) {
             return ERROR;
         }
+        Node node;
+        if (tokens[i] == Token.IF) {
+            node = new Node.If(i);
+        }
+        else {
+            node = new Node.While(i);
+        }
+        syntaxTree.addChild(node, true);
         i++;
         if (outOfBounds(i) || tokens[i] != Token.OP_PAREN) {
+            syntaxTree.toParent();
+            syntaxTree.removeChild();
             return ERROR;
         }
         i++;
         int ii = checkExpression(i);
         if (ii == ERROR) {
+            syntaxTree.toParent();
+            syntaxTree.removeChild();
             return ERROR;
         }
         i = ii;
         if (outOfBounds(i) || tokens[i] != Token.CL_PAREN) {
+            syntaxTree.toParent();
+            syntaxTree.removeChild();
             return ERROR;
         }
         i++;
         if (outOfBounds(i) || tokens[i] != Token.OP_CURLY) {
+            syntaxTree.toParent();
+            syntaxTree.removeChild();
             return ERROR;
         }
         i++;
@@ -152,8 +226,12 @@ public class Parser {
             i = ii;
         }
         if (outOfBounds(i) || tokens[i] != Token.CL_CURLY) {
+            syntaxTree.toParent();
+            syntaxTree.removeChild();
             return ERROR;
         }
+        node.setEnd(i);
+        syntaxTree.toParent();
         i++;
         return i;
     }
@@ -162,8 +240,14 @@ public class Parser {
         if (outOfBounds(i) || (tokens[i] != Token.IDENTIFIER && !isValue(tokens[i]))) {
             return ERROR;
         }
+        if (syntaxTree.getCurrentNode() instanceof Expression node) {
+            node.addToExpression(strings[i], tokens[i]);
+        }
         i++;
         if (!outOfBounds(i) && isOperator(tokens[i])) {
+            if (syntaxTree.getCurrentNode() instanceof Expression node) {
+                node.addToExpression(strings[i], tokens[i]);
+            }
             i++;
             int ii = checkExpression(i);
             if (ii == ERROR) {
@@ -203,5 +287,9 @@ public class Parser {
 
     private boolean outOfBounds(int i) {
         return i >= numTokens;
+    }
+
+    public AbstractSyntaxTree getSyntaxTree() {
+        return syntaxTree;
     }
 }

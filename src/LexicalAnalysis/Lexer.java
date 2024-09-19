@@ -1,3 +1,7 @@
+package LexicalAnalysis;
+
+import Utilities.Token;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,7 +40,8 @@ public class Lexer {
         }
     }
 
-    public void scan(String input) {
+    public boolean scan(String input) {
+        boolean result = true;
         strings = new ArrayList<>();
         tokens = new ArrayList<>();
         StringBuilder stringBuilder = new StringBuilder();
@@ -118,6 +123,7 @@ public class Lexer {
                 if (isLastOrNotEqual) {
                     strings.add("!");
                     tokens.add(Token.ERROR);
+                    result = false;
                 }
                 else {
                     strings.add("!=");
@@ -148,8 +154,10 @@ public class Lexer {
             if (c != ' ' && c != '\n' && c != '\t') {
                 strings.add("" + c);
                 tokens.add(Token.ERROR);
+                result = false;
             }
         }
+        return result;
     }
 
     public Boolean[] checkReservedWords(ArrayList<Token> tokens) {

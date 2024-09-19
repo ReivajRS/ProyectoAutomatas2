@@ -1,3 +1,8 @@
+import LexicalAnalysis.Lexer;
+import SemanticAnalysis.SemanticAnalyzer;
+import Utilities.Token;
+import SyntacticAnalysis.Parser;
+
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -13,10 +18,14 @@ import java.util.Scanner;
 public class Controller implements ActionListener, KeyListener {
     private final GUI userInterface;
     private final Lexer lexer;
+    private final Parser parser;
+    private final SemanticAnalyzer semanticAnalyzer;
 
-    public Controller(GUI userInterface, Lexer lexer) {
+    public Controller(GUI userInterface, Lexer lexer, Parser parser, SemanticAnalyzer semanticAnalyzer) {
         this.userInterface = userInterface;
         this.lexer = lexer;
+        this.parser = parser;
+        this.semanticAnalyzer = semanticAnalyzer;
         setListeners();
     }
 
@@ -24,6 +33,7 @@ public class Controller implements ActionListener, KeyListener {
         userInterface.getCodeArea().addKeyListener(this);
         userInterface.getScannerButton().addActionListener(this);
         userInterface.getParserButton().addActionListener(this);
+        userInterface.getSemanticButton().addActionListener(this);
         userInterface.getMenuFileOpen().addActionListener(this);
         userInterface.getMenuFileSave().addActionListener(this);
     }
@@ -32,17 +42,28 @@ public class Controller implements ActionListener, KeyListener {
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == userInterface.getScannerButton()) {
             String input = userInterface.getCodeArea().getText();
-            lexer.scan(input);
+            boolean scanResult = lexer.scan(input);
             ArrayList<String> strings = lexer.getStrings();
             ArrayList<Token> tokens = lexer.getTokens();
             Boolean[] reservedWords = lexer.checkReservedWords(tokens);
             userInterface.showTokens(strings, tokens, reservedWords);
-            userInterface.setParserButtonState(true);
+            userInterface.setParserButtonState(scanResult);
+            userInterface.clearParserResult();
         }
 
         if (e.getSource() == userInterface.getParserButton()) {
-            Parser parser = new Parser(lexer.getTokens());
-            userInterface.showParserResult(parser.parse());
+            parser.initialize(lexer.getTokens(), lexer.getStrings());
+            boolean parserResult = parser.parse();
+            userInterface.showParserResult(parserResult);
+            userInterface.setSemanticButtonState(parserResult);
+            userInterface.clearSemanticResult();
+        }
+
+        if (e.getSource() == userInterface.getSemanticButton()) {
+            SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
+            semanticAnalyzer.initialize(parser.getSyntaxTree());
+            boolean semanticResult = semanticAnalyzer.analyze();
+            userInterface.showSemanticResult(semanticResult);
         }
 
         if (e.getSource() == userInterface.getMenuFileOpen()) {
@@ -56,7 +77,11 @@ public class Controller implements ActionListener, KeyListener {
                         stringBuilder.append(sc.nextLine()).append("\n");
                     }
                     userInterface.getCodeArea().setText(stringBuilder.toString());
+                    userInterface.clearTokens();
+                    userInterface.clearParserResult();
+                    userInterface.clearSemanticResult();
                     userInterface.setParserButtonState(false);
+                    userInterface.setSemanticButtonState(false);
                 } catch (FileNotFoundException ex) {
                     userInterface.showWarning("The file was not found");
                 }
@@ -86,6 +111,7 @@ public class Controller implements ActionListener, KeyListener {
     @Override
     public void keyTyped(KeyEvent e) {
         userInterface.setParserButtonState(false);
+        userInterface.setSemanticButtonState(false);
     }
 
     @Override
