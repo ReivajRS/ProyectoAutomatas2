@@ -20,12 +20,14 @@ public class Controller implements ActionListener, KeyListener {
     private final Lexer lexer;
     private final Parser parser;
     private final SemanticAnalyzer semanticAnalyzer;
+    private final IntermediateCodeGenerator intermediateCodeGenerator;
 
-    public Controller(GUI userInterface, Lexer lexer, Parser parser, SemanticAnalyzer semanticAnalyzer) {
+    public Controller(GUI userInterface, Lexer lexer, Parser parser, SemanticAnalyzer semanticAnalyzer, IntermediateCodeGenerator intermediateCodeGenerator) {
         this.userInterface = userInterface;
         this.lexer = lexer;
         this.parser = parser;
         this.semanticAnalyzer = semanticAnalyzer;
+        this.intermediateCodeGenerator = intermediateCodeGenerator;
         setListeners();
     }
 
@@ -34,6 +36,7 @@ public class Controller implements ActionListener, KeyListener {
         userInterface.getScannerButton().addActionListener(this);
         userInterface.getParserButton().addActionListener(this);
         userInterface.getSemanticButton().addActionListener(this);
+        userInterface.getIntermediateButton().addActionListener(this);
         userInterface.getMenuFileOpen().addActionListener(this);
         userInterface.getMenuFileSave().addActionListener(this);
     }
@@ -49,6 +52,8 @@ public class Controller implements ActionListener, KeyListener {
             userInterface.showTokens(strings, tokens, reservedWords);
             userInterface.setParserButtonState(scanResult);
             userInterface.clearParserResult();
+            userInterface.clearSemanticResult();
+            userInterface.clearIntermediateCode();
         }
 
         if (e.getSource() == userInterface.getParserButton()) {
@@ -57,13 +62,21 @@ public class Controller implements ActionListener, KeyListener {
             userInterface.showParserResult(parserResult);
             userInterface.setSemanticButtonState(parserResult);
             userInterface.clearSemanticResult();
+            userInterface.clearIntermediateCode();
         }
 
         if (e.getSource() == userInterface.getSemanticButton()) {
-            SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
             semanticAnalyzer.initialize(parser.getSyntaxTree());
             boolean semanticResult = semanticAnalyzer.analyze();
             userInterface.showSemanticResult(semanticResult);
+            userInterface.setIntermediateButtonState(semanticResult);
+            userInterface.clearIntermediateCode();
+        }
+
+        if (e.getSource() == userInterface.getIntermediateButton()) {
+            intermediateCodeGenerator.initialize(parser.getSyntaxTree());
+            String intermediateCode = intermediateCodeGenerator.getIntermediateCode();
+            userInterface.showIntermediateCode(intermediateCode);
         }
 
         if (e.getSource() == userInterface.getMenuFileOpen()) {
@@ -80,8 +93,10 @@ public class Controller implements ActionListener, KeyListener {
                     userInterface.clearTokens();
                     userInterface.clearParserResult();
                     userInterface.clearSemanticResult();
+                    userInterface.clearIntermediateCode();
                     userInterface.setParserButtonState(false);
                     userInterface.setSemanticButtonState(false);
+                    userInterface.setIntermediateButtonState(false);
                 } catch (FileNotFoundException ex) {
                     userInterface.showWarning("The file was not found");
                 }
@@ -112,6 +127,7 @@ public class Controller implements ActionListener, KeyListener {
     public void keyTyped(KeyEvent e) {
         userInterface.setParserButtonState(false);
         userInterface.setSemanticButtonState(false);
+        userInterface.setIntermediateButtonState(false);
     }
 
     @Override

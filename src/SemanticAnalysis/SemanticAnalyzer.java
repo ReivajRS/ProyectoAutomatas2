@@ -101,6 +101,7 @@ public class SemanticAnalyzer {
     private boolean checkExpression(Node node, ArrayList<TokenPair> expression, Token dataTypeOfVariable) {
         boolean hasNumber = false;
         boolean hasBoolean = false;
+        boolean hasString = false;
         boolean hasRelationalOperator = false;
         boolean hasEqualityOperator = false;
         int operatorCount = 0;
@@ -116,12 +117,18 @@ public class SemanticAnalyzer {
                 else if (dataType == Token.BOOLEAN) {
                     hasBoolean = true;
                 }
+                else if (dataType == Token.STRING) {
+                    hasString = true;
+                }
             }
             if (tokenPair.token() == Token.NUMBER) {
                 hasNumber = true;
             }
             else if (tokenPair.token() == Token.TRUE || tokenPair.token() == Token.FALSE) {
                 hasBoolean = true;
+            }
+            else if (tokenPair.token() == Token.STRING_VALUE) {
+                hasString = true;
             }
             else if (tokenPair.token() == Token.LESS || tokenPair.token() == Token.LESS_EQ
                     || tokenPair.token() == Token.GREATER || tokenPair.token() == Token.GREATER_EQ
@@ -135,13 +142,20 @@ public class SemanticAnalyzer {
                 operatorCount++;
             }
         }
-        boolean isIntExpression = hasNumber && !hasBoolean;
-        boolean isBooleanExpression = hasBoolean && !hasNumber;
+        boolean isIntExpression = hasNumber && !hasBoolean && !hasString;
+        boolean isBooleanExpression = hasBoolean && !hasNumber && !hasString;
+        boolean isStringExpression = hasString && !hasNumber && !hasBoolean;
         if (dataTypeOfVariable != null) {
+            if (hasEqualityOperator || hasRelationalOperator) {
+                return false;
+            }
             if (dataTypeOfVariable == Token.INT && isIntExpression) {
                 return true;
             }
-            if (dataTypeOfVariable == Token.BOOLEAN && isBooleanExpression) {
+            if (dataTypeOfVariable == Token.BOOLEAN && isBooleanExpression && operatorCount == 0) {
+                return true;
+            }
+            if (dataTypeOfVariable == Token.STRING && isStringExpression && operatorCount == 0) {
                 return true;
             }
         }
@@ -150,6 +164,9 @@ public class SemanticAnalyzer {
                 return true;
             }
             if (isBooleanExpression && hasEqualityOperator && operatorCount == 1) {
+                return true;
+            }
+            if (isStringExpression && hasEqualityOperator && operatorCount == 1) {
                 return true;
             }
         }

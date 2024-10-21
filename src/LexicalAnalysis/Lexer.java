@@ -35,18 +35,40 @@ public class Lexer {
             reservedWordsMap.put("while", Token.WHILE);
             reservedWordsMap.put("int", Token.INT);
             reservedWordsMap.put("boolean", Token.BOOLEAN);
+            reservedWordsMap.put("string", Token.STRING);
             reservedWordsMap.put("true", Token.TRUE);
             reservedWordsMap.put("false", Token.FALSE);
         }
     }
 
     public boolean scan(String input) {
-        boolean result = true;
+        boolean result = true, openQuotes = false;
         strings = new ArrayList<>();
         tokens = new ArrayList<>();
         StringBuilder stringBuilder = new StringBuilder();
         for (int i = 0; i < input.length(); i++) {
             Character c = input.charAt(i);
+            if (c == '\"') {
+                if (openQuotes) {
+                    openQuotes = false;
+                    strings.removeLast();
+                    tokens.removeLast();
+                    String string = stringBuilder.toString();
+                    strings.add(string);
+                    tokens.add(Token.STRING_VALUE);
+                    stringBuilder = new StringBuilder();
+                }
+                else {
+                    openQuotes = true;
+                    strings.add("\"");
+                    tokens.add(Token.QUOTES);
+                }
+                continue;
+            }
+            if (openQuotes) {
+                stringBuilder.append(c);
+                continue;
+            }
             if (c == '{') {
                 strings.add("{");
                 tokens.add(Token.OP_CURLY);
@@ -147,7 +169,8 @@ public class Lexer {
                 if (i + 1 >= input.length() || !Character.isDigit(input.charAt(i + 1))) {
                     String string = stringBuilder.toString();
                     strings.add(string);
-                    tokens.add(Token.NUMBER);stringBuilder = new StringBuilder();
+                    tokens.add(Token.NUMBER);
+                    stringBuilder = new StringBuilder();
                 }
                 continue;
             }
@@ -156,6 +179,11 @@ public class Lexer {
                 tokens.add(Token.ERROR);
                 result = false;
             }
+        }
+        if (openQuotes) {
+            String string = stringBuilder.toString();
+            strings.add(string);
+            tokens.add(Token.ERROR);
         }
         return result;
     }

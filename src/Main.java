@@ -8,6 +8,7 @@ public class Main {
         Lexer lexer = new Lexer();
         Parser parser = new Parser();
         SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
-        Controller controller = new Controller(userInterface, lexer, parser, semanticAnalyzer);
+        IntermediateCodeGenerator intermediateCodeGenerator = new IntermediateCodeGenerator();
+        Controller controller = new Controller(userInterface, lexer, parser, semanticAnalyzer, intermediateCodeGenerator);
     }
 }

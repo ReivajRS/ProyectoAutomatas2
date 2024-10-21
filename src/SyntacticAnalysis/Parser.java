@@ -259,11 +259,11 @@ public class Parser {
     }
 
     private boolean isDataType(Token token) {
-        return token == Token.INT || token == Token.BOOLEAN;
+        return token == Token.INT || token == Token.BOOLEAN || token == Token.STRING;
     }
 
     private boolean isValue(Token token) {
-        return token == Token.NUMBER || token == Token.TRUE || token == Token.FALSE;
+        return token == Token.NUMBER || token == Token.TRUE || token == Token.FALSE || token == Token.STRING_VALUE;
     }
 
     private boolean isOperator(Token token) {

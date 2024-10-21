@@ -1,8 +1,13 @@
 code A {
 	int x;
 	x = 10;
+	x = 10 + 10 - 5;
 	boolean y;
 	y = true;
+	y = false;
+	string s;
+	s = "Hola mundo";
 	print(x);
 	print(y);
+	print(s);
 }
