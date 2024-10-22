@@ -16,7 +16,7 @@ public class GUI extends JFrame {
     private final Rectangle TOKENS_PANEL_DIMENSIONS = new Rectangle(800, 50, 300, 500);
     private final Rectangle PARSER_PANEL_DIMENSIONS = new Rectangle(1170, 50, 300, 150);
     private final Rectangle SEMANTIC_PANEL_DIMENSIONS = new Rectangle(1170, 250, 300, 150);
-    private final Rectangle INTERMEDIATE_PANEL_DIMENSIONS = new Rectangle(1170, 450, 300, 150);
+    private final Rectangle INTERMEDIATE_PANEL_DIMENSIONS = new Rectangle(1170, 450, 300, 300);
     private final Rectangle SCANNER_BUTTON_DIMENSIONS = new Rectangle(670, 100, 120, 30);
     private final Rectangle PARSER_BUTTON_DIMENSIONS = new Rectangle(670, 150, 120, 30);
     private final Rectangle SEMANTIC_BUTTON_DIMENSIONS = new Rectangle(670, 200, 120, 30);

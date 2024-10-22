@@ -5,6 +5,7 @@ import Utilities.Token;
 import Utilities.TokenPair;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
 
@@ -12,6 +13,8 @@ public class IntermediateCodeGenerator {
     private AbstractSyntaxTree syntaxTree;
     private StringBuilder header, data, code, macrosAndProcesses;
     private HashSet<String> definedIds;
+    private HashMap<Token, String> jumpsMap, inverseJumpsMap;
+    private int ifCount, whileCount;
 
     public void initialize(AbstractSyntaxTree syntaxTree) {
         this.syntaxTree = syntaxTree;
@@ -20,6 +23,25 @@ public class IntermediateCodeGenerator {
         macrosAndProcesses = new StringBuilder();
         code = new StringBuilder();
         definedIds = new HashSet<>();
+        jumpsMap = new HashMap<>();
+        inverseJumpsMap = new HashMap<>();
+
+        ifCount = 0;
+        whileCount = 0;
+
+        jumpsMap.put(Token.EQUALS, "JE");
+        jumpsMap.put(Token.DIFFERENT, "JNE");
+        jumpsMap.put(Token.LESS, "JL");
+        jumpsMap.put(Token.LESS_EQ, "JLE");
+        jumpsMap.put(Token.GREATER, "JG");
+        jumpsMap.put(Token.GREATER_EQ, "JGE");
+
+        inverseJumpsMap.put(Token.EQUALS, "JNE");
+        inverseJumpsMap.put(Token.DIFFERENT, "JE");
+        inverseJumpsMap.put(Token.LESS, "JGE");
+        inverseJumpsMap.put(Token.LESS_EQ, "JG");
+        inverseJumpsMap.put(Token.GREATER, "JLE");
+        inverseJumpsMap.put(Token.GREATER_EQ, "JL");
     }
 
     public String getIntermediateCode() {
@@ -45,6 +67,8 @@ public class IntermediateCodeGenerator {
     }
 
     private void generate(Node node) {
+        int openIf = -1, openWhile = -1;
+
         if (node instanceof Node.Code codeNode) {
             addHeader(codeNode.getId());
         }
@@ -92,35 +116,60 @@ public class IntermediateCodeGenerator {
             if (dataType == Token.STRING) {
                 code.append("print ").append(var).append("\n");
             }
+            code.append("print endl").append("\n");
+        }
+        else if (node instanceof Node.If ifNode) {
+            Node scopeNode = ifNode.getParent();
+            addFlowControl(scopeNode, ifNode.getExpression(), Token.IF);
+            openIf = ifCount++;
+        }
+        else if (node instanceof Node.While whileNode) {
+            Node scopeNode = whileNode.getParent();
+            addFlowControl(scopeNode, whileNode.getExpression(), Token.WHILE);
+            openWhile = whileCount++;
         }
         if (node.isBlockNode()) {
             for (Node child : node.getChildren()) {
                 generate(child);
             }
         }
+        if (openIf != -1) {
+            code.append("if_continue").append(openIf).append(":").append("\n");
+        }
+        if (openWhile != -1) {
+            code.append("JMP while").append(openWhile).append("\n");
+            code.append("while_continue").append(openWhile).append(":").append("\n");
+        }
     }
 
     private void assignInt(Node.Assignment assignmentNode, int position) {
         String var = assignmentNode.getId() + "_" + position;
+        String idOrVar = getIdOrVar(assignmentNode.getParent(), assignmentNode.getExpression().getFirst().id(), assignmentNode.getExpression().getFirst().token());
         if (assignmentNode.getExpression().size() == 1) {
-            code.append("MOV ").append(var).append(", ").append(assignmentNode.getExpression().getFirst().id()).append("\n");
+            code.append("MOV ").append(var).append(", ").append(idOrVar).append("\n");
             return;
         }
-        code.append("MOV AX, ").append(assignmentNode.getExpression().getFirst().id()).append("\n");
+        code.append("MOV AX, ").append(idOrVar).append("\n");
         for (int i = 1; i < assignmentNode.getExpression().size(); i += 2) {
             if (assignmentNode.getExpression().get(i).token() == Token.PLUS) {
                 code.append("ADD AX, ");
             }
-            if (assignmentNode.getExpression().get(i).token() == Token.MINUS) {
+            else if (assignmentNode.getExpression().get(i).token() == Token.MINUS) {
                 code.append("SUB AX, ");
             }
-            code.append(assignmentNode.getExpression().get(i + 1).id()).append("\n");
+            String value = getIdOrVar(assignmentNode.getParent(), assignmentNode.getExpression().get(i + 1).id(), assignmentNode.getExpression().get(i + 1).token());
+            code.append(value).append("\n");
         }
         code.append("MOV ").append(var).append(", AX").append("\n");
     }
 
     private void assignBoolean(Node.Assignment assignmentNode, int position) {
         String var = assignmentNode.getId() + "_" + position;
+        if (assignmentNode.getExpression().getFirst().token() == Token.IDENTIFIER) {
+            String value = getIdOrVar(assignmentNode, assignmentNode.getExpression().getFirst().id(), assignmentNode.getExpression().getFirst().token());
+            code.append("MOV ").append(var).append(", ").append(value).append("\n");
+            return;
+        }
         code.append("MOV ").append(var).append(", ")
                 .append(assignmentNode.getExpression().getFirst().token() == Token.TRUE ? "1" : "0").append("\n");
     }
@@ -167,9 +216,11 @@ public class IntermediateCodeGenerator {
     }
 
     private void addPrint() {
-        data.append("num\tDB\t5 DUP('0'), 0AH, 0DH, '$'").append("\n");
-        data.append("true\tDB\t'true', 0AH, 0DH, '$'").append("\n");
-        data.append("false\tDB\t'false', 0AH, 0DH, '$'").append("\n");
+        data.append("num\tDB\t5 DUP('0'), '$'").append("\n");
+        data.append("bool\tDB\t?").append("\n");
+        data.append("true\tDB\t'true', '$'").append("\n");
+        data.append("false\tDB\t'false', '$'").append("\n");
+        data.append("endl\tDB\t0AH, 0DH, '$'").append("\n");
 
         macrosAndProcesses.append("print MACRO msg").append("\n");
         macrosAndProcesses.append("\t").append("MOV BX, 01H").append("\n");
@@ -185,6 +236,12 @@ public class IntermediateCodeGenerator {
 
         macrosAndProcesses.append("print_boolean MACRO b").append("\n");
         macrosAndProcesses.append("\t").append("MOV AL, b").append("\n");
+        macrosAndProcesses.append("\t").append("MOV bool, AL").append("\n");
+        macrosAndProcesses.append("\t").append("CALL print_boolean_util").append("\n");
+        macrosAndProcesses.append("ENDM").append("\n");
+
+        macrosAndProcesses.append("print_boolean_util PROC").append("\n");
+        macrosAndProcesses.append("\t").append("MOV AL, bool").append("\n");
         macrosAndProcesses.append("\t").append("CMP AL, 1").append("\n");
         macrosAndProcesses.append("\t").append("JE is_true").append("\n");
         macrosAndProcesses.append("\t").append("JNE is_false").append("\n");
@@ -195,76 +252,101 @@ public class IntermediateCodeGenerator {
         macrosAndProcesses.append("\t\t").append("print false").append("\n");
         macrosAndProcesses.append("\t\t").append("JNE continue").append("\n");
         macrosAndProcesses.append("\t").append("continue:").append("\n");
-        macrosAndProcesses.append("ENDM").append("\n");
+        macrosAndProcesses.append("\t").append("RET").append("\n");
+        macrosAndProcesses.append("print_boolean_util ENDP").append("\n");
     }
 
-    private boolean checkExpression(Node node, ArrayList<TokenPair> expression, Token dataTypeOfVariable) {
-        boolean hasNumber = false;
-        boolean hasBoolean = false;
-        boolean hasString = false;
-        boolean hasRelationalOperator = false;
-        boolean hasEqualityOperator = false;
-        int operatorCount = 0;
-        for (TokenPair tokenPair : expression) {
-            if (tokenPair.token() == Token.IDENTIFIER) {
-                Token dataType = Objects.requireNonNull(getSymbolData(node, tokenPair.id())).dataType();
-                if (dataType == Token.INT) {
-                    hasNumber = true;
-                }
-                else if (dataType == Token.BOOLEAN) {
-                    hasBoolean = true;
-                }
-                else if (dataType == Token.STRING) {
-                    hasString = true;
-                }
-            }
-            if (tokenPair.token() == Token.NUMBER) {
-                hasNumber = true;
-            }
-            else if (tokenPair.token() == Token.TRUE || tokenPair.token() == Token.FALSE) {
-                hasBoolean = true;
-            }
-            else if (tokenPair.token() == Token.STRING_VALUE) {
-                hasString = true;
-            }
-            else if (tokenPair.token() == Token.LESS || tokenPair.token() == Token.LESS_EQ
-                    || tokenPair.token() == Token.GREATER || tokenPair.token() == Token.GREATER_EQ
-            ) {
-                hasRelationalOperator = true;
-                operatorCount++;
-            }
-            else if (tokenPair.token() == Token.EQUALS || tokenPair.token() == Token.DIFFERENT) {
-                hasEqualityOperator = true;
-                hasRelationalOperator = true;
-                operatorCount++;
+    private void addFlowControl(Node node, ArrayList<TokenPair> expression, Token flowControlType) {
+        Token firstToken = expression.getFirst().token(), dataType = null;
+        if (firstToken == Token.IDENTIFIER) {
+            dataType = Objects.requireNonNull(getSymbolData(node, expression.getFirst().id())).dataType();
+        }
+        else if (firstToken == Token.NUMBER) {
+            dataType = Token.INT;
+        }
+        else if (firstToken == Token.TRUE || firstToken == Token.FALSE) {
+            dataType = Token.BOOLEAN;
+        }
+        else if (firstToken == Token.STRING_VALUE) {
+            dataType = Token.STRING;
+        }
+
+        if (flowControlType == Token.WHILE) {
+            code.append("while").append(whileCount).append(":").append("\n");
+        }
+
+        int operatorPosition = 0;
+        for (int i = 0; i < expression.size(); i++) {
+            if (jumpsMap.containsKey(expression.get(i).token())) {
+                operatorPosition = i;
+                break;
             }
         }
-        boolean isIntExpression = hasNumber && !hasBoolean && !hasString;
-        boolean isBooleanExpression = hasBoolean && !hasNumber && !hasString;
-        boolean isStringExpression = hasString && !hasNumber && !hasBoolean;
-        if (dataTypeOfVariable != null) {
-            if (dataTypeOfVariable == Token.INT && isIntExpression) {
-                return true;
+
+        if (dataType == Token.INT) {
+            String idOrVar = getIdOrVar(node, expression.getFirst().id(), expression.getFirst().token());
+            code.append("MOV AX, ").append(idOrVar).append("\n");
+            for (int i = 1; i < operatorPosition - 1; i += 2) {
+                if (expression.get(i).token() == Token.PLUS) {
+                    code.append("ADD AX, ");
+                }
+                else if (expression.get(i).token() == Token.MINUS) {
+                    code.append("SUB AX, ");
+                }
+                String value = getIdOrVar(node, expression.get(i + 1).id(), expression.get(i + 1).token());
+                code.append(value).append("\n");
             }
-            if (dataTypeOfVariable == Token.BOOLEAN && isBooleanExpression) {
-                return true;
+            code.append("MOV BX, ").append(expression.get(operatorPosition + 1).id()).append("\n");
+            for (int i = operatorPosition + 2; i < expression.size(); i += 2) {
+                if (expression.get(i).token() == Token.PLUS) {
+                    code.append("ADD BX, ");
+                }
+                else if (expression.get(i).token() == Token.MINUS) {
+                    code.append("SUB BX, ");
+                }
+                String value = getIdOrVar(node, expression.get(i + 1).id(), expression.get(i + 1).token());
+                code.append(value).append("\n");
             }
-            if (dataTypeOfVariable == Token.STRING && isStringExpression) {
-                return true;
-            }
+            code.append("CMP AX, BX").append("\n");
         }
-        else {
-            if (isIntExpression && hasRelationalOperator && operatorCount == 1) {
-                return true;
+        else if (dataType == Token.BOOLEAN) {
+            String leftValue = "";
+            if (expression.getFirst().token() != Token.IDENTIFIER) {
+                leftValue = getBooleanValue(expression.getFirst().token());
             }
-            if (isBooleanExpression && hasEqualityOperator && operatorCount == 1) {
-                return true;
+            else {
+                leftValue = getIdOrVar(node, expression.getFirst().id(), expression.getFirst().token());
             }
-            if (isStringExpression && hasEqualityOperator && operatorCount == 1) {
-                return true;
+            code.append("MOV AL, ").append(leftValue).append("\n");
+            String rightValue = "";
+            if (expression.getFirst().token() != Token.IDENTIFIER) {
+                rightValue = getBooleanValue(expression.getLast().token());
             }
+            else {
+                rightValue = getIdOrVar(node, expression.getLast().id(), expression.getLast().token());
+            }
+            code.append("MOV BL, ").append(rightValue).append("\n");
+            code.append("CMP AL, BL").append("\n");
         }
-        return false;
+
+        if (flowControlType == Token.IF) {
+            code.append(inverseJumpsMap.get(expression.get(operatorPosition).token())).append(" if_continue").append(ifCount).append("\n");
+        }
+        else if (flowControlType == Token.WHILE) {
+            code.append(inverseJumpsMap.get(expression.get(operatorPosition).token())).append(" while_continue").append(whileCount).append("\n");
+        }
+    }
+
+    private String getIdOrVar(Node node, String id, Token token) {
+        if (token != Token.IDENTIFIER) {
+            return id;
+        }
+        int declarationPosition = Objects.requireNonNull(getSymbolData(node, id)).position();
+        return id + "_" + declarationPosition;
+    }
+
+    private String getBooleanValue(Token token) {
+        return token == Token.TRUE ? "1" : "0";
     }
 
     private String getDefaultValue(Token dataType) {
