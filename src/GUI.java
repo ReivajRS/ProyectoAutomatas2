@@ -5,22 +5,24 @@ import java.awt.*;
 import java.util.ArrayList;
 
 public class GUI extends JFrame {
-    private JTextArea codeArea, tokensArea, parserArea, semanticArea, intermediateArea;
-    private JButton scannerButton, parserButton, semanticButton, intermediateButton;
+    private JTextArea codeArea, tokensArea, parserArea, semanticArea, intermediateArea, objectArea;
+    private JButton scannerButton, parserButton, semanticButton, intermediateButton, objectButton;
     private JMenuBar menuBar;
     private JMenu menuFile;
     private JMenuItem menuFileOpen, menuFileSave;
     private JFileChooser fileChooser;
-    private final int WIDTH = 1500, HEIGHT = 800;
+    private final int WIDTH = 1500, HEIGHT = 950;
     private final Rectangle CODE_PANEL_DIMENSIONS = new Rectangle(50, 50, 600, 500);
     private final Rectangle TOKENS_PANEL_DIMENSIONS = new Rectangle(800, 50, 300, 500);
     private final Rectangle PARSER_PANEL_DIMENSIONS = new Rectangle(1170, 50, 300, 150);
     private final Rectangle SEMANTIC_PANEL_DIMENSIONS = new Rectangle(1170, 250, 300, 150);
     private final Rectangle INTERMEDIATE_PANEL_DIMENSIONS = new Rectangle(1170, 450, 300, 300);
+    private final Rectangle OBJECT_PANEL_DIMENSIONS = new Rectangle(50, 600, 900, 300);
     private final Rectangle SCANNER_BUTTON_DIMENSIONS = new Rectangle(670, 100, 120, 30);
     private final Rectangle PARSER_BUTTON_DIMENSIONS = new Rectangle(670, 150, 120, 30);
     private final Rectangle SEMANTIC_BUTTON_DIMENSIONS = new Rectangle(670, 200, 120, 30);
     private final Rectangle INTERMEDIATE_BUTTON_DIMENSIONS = new Rectangle(670, 250, 120, 30);
+    private final Rectangle OBJECT_BUTTON_DIMENSIONS = new Rectangle(670, 300, 120, 30);
 
     public GUI() {
         makeInterface();
@@ -120,6 +122,21 @@ public class GUI extends JFrame {
         intermediateArea.setTabSize(2);
         intermediateArea.setFont(new Font("Courier New", Font.PLAIN, 20));
 
+        JLabel objectLabel = new JLabel("Object code", JLabel.CENTER);
+        objectLabel.setForeground(Color.WHITE);
+        objectLabel.setFont(new Font("Dialog", Font.BOLD, 16));
+        objectArea = new JTextArea();
+        JScrollPane objectScroll = new JScrollPane(objectArea);
+        JPanel objectPanel = new JPanel(new BorderLayout());
+        objectPanel.setBounds(OBJECT_PANEL_DIMENSIONS);
+        objectPanel.setBackground(Color.DARK_GRAY);
+        objectArea.setEditable(false);
+        objectPanel.add(objectLabel, BorderLayout.NORTH);
+        objectPanel.add(objectScroll, BorderLayout.CENTER);
+
+        objectArea.setTabSize(2);
+        objectArea.setFont(new Font("Courier New", Font.PLAIN, 20));
+
         scannerButton = new JButton("Scanner");
         scannerButton.setBounds(SCANNER_BUTTON_DIMENSIONS);
         scannerButton.setFont(new Font("Dialog", Font.BOLD, 16));
@@ -139,15 +156,22 @@ public class GUI extends JFrame {
         intermediateButton.setFont(new Font("Dialog", Font.BOLD, 16));
         intermediateButton.setEnabled(false);
 
+        objectButton = new JButton("Obj code");
+        objectButton.setBounds(OBJECT_BUTTON_DIMENSIONS);
+        objectButton.setFont(new Font("Dialog", Font.BOLD, 16));
+        objectButton.setEnabled(false);
+
         add(codePanel);
         add(tokensPanel);
         add(parserPanel);
         add(semanticPanel);
         add(intermediatePanel);
+        add(objectPanel);
         add(scannerButton);
         add(parserButton);
         add(semanticButton);
         add(intermediateButton);
+        add(objectButton);
     }
 
     public void showTokens(ArrayList<String> strings, ArrayList<Token> tokens, Boolean[] reservedWords) {
@@ -173,6 +197,10 @@ public class GUI extends JFrame {
         intermediateArea.setText(intermediateCode);
     }
 
+    public void showObjectCode(String objectCode) {
+        objectArea.setText(objectCode);
+    }
+
     public void clearTokens() {
         tokensArea.setText("");
     }
@@ -189,6 +217,10 @@ public class GUI extends JFrame {
         intermediateArea.setText("");
     }
 
+    public void clearObjectCode() {
+        objectArea.setText("");
+    }
+
     public void setParserButtonState(boolean state) {
         parserButton.setEnabled(state);
     }
@@ -199,6 +231,10 @@ public class GUI extends JFrame {
 
     public void setIntermediateButtonState(boolean state) {
         intermediateButton.setEnabled(state);
+    }
+
+    public void setObjectButtonState(boolean state) {
+        objectButton.setEnabled(state);
     }
 
     public void showWarning(String message) {
@@ -223,6 +259,10 @@ public class GUI extends JFrame {
 
     public JButton getIntermediateButton() {
         return intermediateButton;
+    }
+
+    public JButton getObjectButton() {
+        return objectButton;
     }
 
     public JMenuItem getMenuFileOpen() {

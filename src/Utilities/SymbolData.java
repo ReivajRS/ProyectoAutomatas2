@@ -1,4 +1,4 @@
 package Utilities;
 
-public record SymbolData(Token dataType, int position) {
+public record SymbolData(Token dataType, int position, String fullId, int offset) {
 }

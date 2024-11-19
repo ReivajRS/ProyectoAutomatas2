@@ -1,3 +1,5 @@
+import CodeGenerators.IntermediateCodeGenerator;
+import CodeGenerators.ObjectCodeGenerator;
 import LexicalAnalysis.Lexer;
 import SemanticAnalysis.SemanticAnalyzer;
 import SyntacticAnalysis.Parser;
@@ -9,6 +11,7 @@ public class Main {
         Parser parser = new Parser();
         SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
         IntermediateCodeGenerator intermediateCodeGenerator = new IntermediateCodeGenerator();
-        Controller controller = new Controller(userInterface, lexer, parser, semanticAnalyzer, intermediateCodeGenerator);
+        ObjectCodeGenerator objectCodeGenerator = new ObjectCodeGenerator();
+        Controller controller = new Controller(userInterface, lexer, parser, semanticAnalyzer, intermediateCodeGenerator, objectCodeGenerator);
     }
 }

@@ -1,3 +1,5 @@
+import CodeGenerators.IntermediateCodeGenerator;
+import CodeGenerators.ObjectCodeGenerator;
 import LexicalAnalysis.Lexer;
 import SemanticAnalysis.SemanticAnalyzer;
 import Utilities.Token;
@@ -21,13 +23,15 @@ public class Controller implements ActionListener, KeyListener {
     private final Parser parser;
     private final SemanticAnalyzer semanticAnalyzer;
     private final IntermediateCodeGenerator intermediateCodeGenerator;
+    private final ObjectCodeGenerator objectCodeGenerator;
 
-    public Controller(GUI userInterface, Lexer lexer, Parser parser, SemanticAnalyzer semanticAnalyzer, IntermediateCodeGenerator intermediateCodeGenerator) {
+    public Controller(GUI userInterface, Lexer lexer, Parser parser, SemanticAnalyzer semanticAnalyzer, IntermediateCodeGenerator intermediateCodeGenerator, ObjectCodeGenerator objectCodeGenerator) {
         this.userInterface = userInterface;
         this.lexer = lexer;
         this.parser = parser;
         this.semanticAnalyzer = semanticAnalyzer;
         this.intermediateCodeGenerator = intermediateCodeGenerator;
+        this.objectCodeGenerator = objectCodeGenerator;
         setListeners();
     }
 
@@ -37,6 +41,7 @@ public class Controller implements ActionListener, KeyListener {
         userInterface.getParserButton().addActionListener(this);
         userInterface.getSemanticButton().addActionListener(this);
         userInterface.getIntermediateButton().addActionListener(this);
+        userInterface.getObjectButton().addActionListener(this);
         userInterface.getMenuFileOpen().addActionListener(this);
         userInterface.getMenuFileSave().addActionListener(this);
     }
@@ -54,6 +59,7 @@ public class Controller implements ActionListener, KeyListener {
             userInterface.clearParserResult();
             userInterface.clearSemanticResult();
             userInterface.clearIntermediateCode();
+            userInterface.clearObjectCode();
         }
 
         if (e.getSource() == userInterface.getParserButton()) {
@@ -63,6 +69,7 @@ public class Controller implements ActionListener, KeyListener {
             userInterface.setSemanticButtonState(parserResult);
             userInterface.clearSemanticResult();
             userInterface.clearIntermediateCode();
+            userInterface.clearObjectCode();
         }
 
         if (e.getSource() == userInterface.getSemanticButton()) {
@@ -71,12 +78,21 @@ public class Controller implements ActionListener, KeyListener {
             userInterface.showSemanticResult(semanticResult);
             userInterface.setIntermediateButtonState(semanticResult);
             userInterface.clearIntermediateCode();
+            userInterface.clearObjectCode();
         }
 
         if (e.getSource() == userInterface.getIntermediateButton()) {
-            intermediateCodeGenerator.initialize(parser.getSyntaxTree());
+            intermediateCodeGenerator.initialize(parser.getSyntaxTree(), semanticAnalyzer.getSymbolDataMap());
             String intermediateCode = intermediateCodeGenerator.getIntermediateCode();
             userInterface.showIntermediateCode(intermediateCode);
+            userInterface.setObjectButtonState(true);
+            userInterface.clearObjectCode();
+        }
+
+        if (e.getSource() == userInterface.getObjectButton()) {
+            objectCodeGenerator.initialize(parser.getSyntaxTree(), semanticAnalyzer.getSymbolDataMap());
+            String objectCode = objectCodeGenerator.getObjectCode();
+            userInterface.showObjectCode(objectCode);
         }
 
         if (e.getSource() == userInterface.getMenuFileOpen()) {
@@ -94,9 +110,11 @@ public class Controller implements ActionListener, KeyListener {
                     userInterface.clearParserResult();
                     userInterface.clearSemanticResult();
                     userInterface.clearIntermediateCode();
+                    userInterface.clearObjectCode();
                     userInterface.setParserButtonState(false);
                     userInterface.setSemanticButtonState(false);
                     userInterface.setIntermediateButtonState(false);
+                    userInterface.setObjectButtonState(false);
                 } catch (FileNotFoundException ex) {
                     userInterface.showWarning("The file was not found");
                 }
@@ -128,6 +146,7 @@ public class Controller implements ActionListener, KeyListener {
         userInterface.setParserButtonState(false);
         userInterface.setSemanticButtonState(false);
         userInterface.setIntermediateButtonState(false);
+        userInterface.setObjectButtonState(false);
     }
 
     @Override

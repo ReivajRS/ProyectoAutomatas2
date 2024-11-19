@@ -4,16 +4,19 @@ import SyntacticAnalysis.AbstractSyntaxTree;
 import SyntacticAnalysis.Node;
 import Utilities.SymbolData;
 import Utilities.Token;
-import Utilities.TokenPair;
+import Utilities.TokenTuple;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Objects;
 
 public class SemanticAnalyzer {
     private AbstractSyntaxTree syntaxTree;
+    private HashMap<String, SymbolData> symbolDataMap;
 
     public void initialize(AbstractSyntaxTree syntaxTree) {
         this.syntaxTree = syntaxTree;
+        this.symbolDataMap = new HashMap<>();
     }
 
     public boolean analyze() {
@@ -29,7 +32,9 @@ public class SemanticAnalyzer {
             if (checkExistenceOfSymbol(scopeNode, id)) {
                 return false;
             }
-            scopeNode.getSymbolTable().addSymbol(id, dataType, position);
+            SymbolData symbolData = scopeNode.getSymbolTable().addSymbol(id, dataType, position);
+            declarationNode.setFullId(symbolData.fullId());
+            symbolDataMap.put(declarationNode.getFullId(), symbolData);
         }
         else if (node instanceof Node.Assignment assignmentNode) {
             String id = assignmentNode.getId();
@@ -37,7 +42,9 @@ public class SemanticAnalyzer {
             if (!checkExistenceOfSymbol(scopeNode, id)) {
                 return false;
             }
-            Token dataType = Objects.requireNonNull(getSymbolData(scopeNode, id)).dataType();
+            SymbolData symbolData = Objects.requireNonNull(getSymbolData(scopeNode, id));
+            Token dataType = symbolData.dataType();
+            assignmentNode.setFullId(symbolData.fullId());
             if (!checkExpression(scopeNode, assignmentNode.getExpression(), dataType)) {
                 return false;
             }
@@ -48,6 +55,8 @@ public class SemanticAnalyzer {
             if (!checkExistenceOfSymbol(scopeNode, id)) {
                 return false;
             }
+            String fullId = Objects.requireNonNull(getSymbolData(scopeNode, id)).fullId();
+            scanNode.setFullId(fullId);
         }
         else if (node instanceof Node.Print printNode) {
             String id = printNode.getId();
@@ -55,6 +64,8 @@ public class SemanticAnalyzer {
             if (!checkExistenceOfSymbol(scopeNode, id)) {
                 return false;
             }
+            String fullId = Objects.requireNonNull(getSymbolData(scopeNode, id)).fullId();
+            printNode.setFullId(fullId);
         }
         else if (node instanceof Node.If ifNode) {
             Node scopeNode = ifNode.getParent();
@@ -98,19 +109,21 @@ public class SemanticAnalyzer {
         return null;
     }
 
-    private boolean checkExpression(Node node, ArrayList<TokenPair> expression, Token dataTypeOfVariable) {
+    private boolean checkExpression(Node node, ArrayList<TokenTuple> expression, Token dataTypeOfVariable) {
         boolean hasNumber = false;
         boolean hasBoolean = false;
         boolean hasString = false;
         boolean hasRelationalOperator = false;
         boolean hasEqualityOperator = false;
         int operatorCount = 0;
-        for (TokenPair tokenPair : expression) {
-            if (tokenPair.token() == Token.IDENTIFIER) {
-                if (!checkExistenceOfSymbol(node, tokenPair.id())) {
+        for (TokenTuple tokenTuple : expression) {
+            if (tokenTuple.getToken() == Token.IDENTIFIER) {
+                if (!checkExistenceOfSymbol(node, tokenTuple.getId())) {
                     return false;
                 }
-                Token dataType = Objects.requireNonNull(getSymbolData(node, tokenPair.id())).dataType();
+                SymbolData symbolData = Objects.requireNonNull(getSymbolData(node, tokenTuple.getId()));
+                Token dataType = symbolData.dataType();
+                tokenTuple.setFullId(symbolData.fullId());
                 if (dataType == Token.INT) {
                     hasNumber = true;
                 }
@@ -121,22 +134,22 @@ public class SemanticAnalyzer {
                     hasString = true;
                 }
             }
-            if (tokenPair.token() == Token.NUMBER) {
+            if (tokenTuple.getToken() == Token.NUMBER) {
                 hasNumber = true;
             }
-            else if (tokenPair.token() == Token.TRUE || tokenPair.token() == Token.FALSE) {
+            else if (tokenTuple.getToken() == Token.TRUE || tokenTuple.getToken() == Token.FALSE) {
                 hasBoolean = true;
             }
-            else if (tokenPair.token() == Token.STRING_VALUE) {
+            else if (tokenTuple.getToken() == Token.STRING_VALUE) {
                 hasString = true;
             }
-            else if (tokenPair.token() == Token.LESS || tokenPair.token() == Token.LESS_EQ
-                    || tokenPair.token() == Token.GREATER || tokenPair.token() == Token.GREATER_EQ
+            else if (tokenTuple.getToken() == Token.LESS || tokenTuple.getToken() == Token.LESS_EQ
+                    || tokenTuple.getToken() == Token.GREATER || tokenTuple.getToken() == Token.GREATER_EQ
             ) {
                 hasRelationalOperator = true;
                 operatorCount++;
             }
-            else if (tokenPair.token() == Token.EQUALS || tokenPair.token() == Token.DIFFERENT) {
+            else if (tokenTuple.getToken() == Token.EQUALS || tokenTuple.getToken() == Token.DIFFERENT) {
                 hasEqualityOperator = true;
                 hasRelationalOperator = true;
                 operatorCount++;
@@ -171,5 +184,9 @@ public class SemanticAnalyzer {
             }
         }
         return false;
+    }
+
+    public HashMap<String, SymbolData> getSymbolDataMap() {
+        return symbolDataMap;
     }
 }

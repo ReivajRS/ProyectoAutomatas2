@@ -1,11 +1,11 @@
 package SyntacticAnalysis;
 
 import Utilities.Token;
-import Utilities.TokenPair;
+import Utilities.TokenTuple;
 import java.util.ArrayList;
 
 public class Node {
-    private String id;
+    private String id, fullId;
     private Node parent;
     private SymbolTable symbolTable;
     private ArrayList<Node> children;
@@ -31,6 +31,10 @@ public class Node {
 
     public String getId() {
         return id;
+    }
+
+    public String getFullId() {
+        return fullId;
     }
 
     public Node getParent() {
@@ -61,6 +65,10 @@ public class Node {
         this.id = id;
     }
 
+    public void setFullId(String fullId) {
+        this.fullId = fullId;
+    }
+
     protected void setEnd(int end) {
         this.end = end;
     }
@@ -72,7 +80,7 @@ public class Node {
     }
 
     public static class Declaration extends Node {
-        Token dataType;
+        private Token dataType;
 
         public Declaration(int begin) {
             super(false, begin);
@@ -89,7 +97,7 @@ public class Node {
     }
 
     public static class Assignment extends Node implements Expression {
-        ArrayList<TokenPair> expression;
+        private ArrayList<TokenTuple> expression;
 
         public Assignment(int begin) {
             super(false, begin);
@@ -98,10 +106,10 @@ public class Node {
 
         @Override
         public void addToExpression(String id, Token token) {
-            expression.add(new TokenPair(id, token));
+            expression.add(new TokenTuple(id, token));
         }
 
-        public ArrayList<TokenPair> getExpression() {
+        public ArrayList<TokenTuple> getExpression() {
             return expression;
         }
     }
@@ -119,7 +127,7 @@ public class Node {
     }
 
     public static class If extends Node implements Expression {
-        ArrayList<TokenPair> expression;
+        private ArrayList<TokenTuple> expression;
 
         public If(int begin) {
             super(true, begin);
@@ -128,16 +136,16 @@ public class Node {
 
         @Override
         public void addToExpression(String id, Token token) {
-            expression.add(new TokenPair(id, token));
+            expression.add(new TokenTuple(id, token));
         }
 
-        public ArrayList<TokenPair> getExpression() {
+        public ArrayList<TokenTuple> getExpression() {
             return expression;
         }
     }
 
     public static class While extends Node implements Expression {
-        ArrayList<TokenPair> expression;
+        private ArrayList<TokenTuple> expression;
 
         public While(int begin) {
             super(true, begin);
@@ -146,10 +154,10 @@ public class Node {
 
         @Override
         public void addToExpression(String id, Token token) {
-            expression.add(new TokenPair(id, token));
+            expression.add(new TokenTuple(id, token));
         }
 
-        public ArrayList<TokenPair> getExpression() {
+        public ArrayList<TokenTuple> getExpression() {
             return expression;
         }
     }

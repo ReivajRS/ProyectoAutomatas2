@@ -1,21 +1,24 @@
+package CodeGenerators;
+
 import SyntacticAnalysis.AbstractSyntaxTree;
 import SyntacticAnalysis.Node;
 import Utilities.SymbolData;
 import Utilities.Token;
-import Utilities.TokenPair;
+import Utilities.TokenTuple;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Objects;
 
 public class IntermediateCodeGenerator {
     private AbstractSyntaxTree syntaxTree;
+    private HashMap<String, SymbolData> symbolDataMap;
     private StringBuilder header, data, code, macrosAndProcesses;
     private HashMap<Token, String> inverseJumpsMap;
     private int ifCount, whileCount, level;
 
-    public void initialize(AbstractSyntaxTree syntaxTree) {
+    public void initialize(AbstractSyntaxTree syntaxTree, HashMap<String, SymbolData> symbolDataMap) {
         this.syntaxTree = syntaxTree;
+        this.symbolDataMap = symbolDataMap;
         header = new StringBuilder();
         data = new StringBuilder();
         macrosAndProcesses = new StringBuilder();
@@ -61,37 +64,29 @@ public class IntermediateCodeGenerator {
             addHeader(codeNode.getId());
         }
         else if (node instanceof Node.Declaration declarationNode) {
-            String id = declarationNode.getId();
+            String fullId = declarationNode.getFullId();
             Token dataType = declarationNode.getDataType();
-            int position = declarationNode.getBegin();
-            data.append(id).append("_").append(position)
+            data.append(fullId)
                     .append("\t").append(getSize(dataType))
                     .append("\t").append(getDefaultValue(dataType))
                     .append("\n");
         }
         else if (node instanceof Node.Assignment assignmentNode) {
-            String id = assignmentNode.getId();
-            Node scopeNode = assignmentNode.getParent();
-            SymbolData symbolData = Objects.requireNonNull(getSymbolData(scopeNode, id));
-            Token dataType = symbolData.dataType();
-            int position = symbolData.position();
+            String fullId = assignmentNode.getFullId();
+            Token dataType = symbolDataMap.get(fullId).dataType();
             if (dataType == Token.INT) {
-                assignInt(assignmentNode, position);
+                assignInt(assignmentNode, fullId);
             }
             if (dataType == Token.BOOLEAN) {
-                assignBoolean(assignmentNode, position);
+                assignBoolean(assignmentNode, fullId);
             }
             if (dataType == Token.STRING) {
-                assignString(assignmentNode, position);
+                assignString(assignmentNode, fullId);
             }
         }
         else if (node instanceof Node.Print printNode) {
-            String id = printNode.getId();
-            Node scopeNode = printNode.getParent();
-            SymbolData symbolData = Objects.requireNonNull(getSymbolData(scopeNode, id));
-            Token dataType = symbolData.dataType();
-            int position = symbolData.position();
-            String var = id + "_" + position;
+            Token dataType = symbolDataMap.get(printNode.getFullId()).dataType();
+            String var = printNode.getFullId();
             addIndentation();
             if (dataType == Token.INT) {
                 code.append("print_int ").append(var).append("\n");
@@ -106,13 +101,11 @@ public class IntermediateCodeGenerator {
             code.append("print endl").append("\n");
         }
         else if (node instanceof Node.If ifNode) {
-            Node scopeNode = ifNode.getParent();
-            addFlowControl(scopeNode, ifNode.getExpression(), Token.IF);
+            addFlowControl(ifNode.getExpression(), Token.IF);
             openIf = ifCount++;
         }
         else if (node instanceof Node.While whileNode) {
-            Node scopeNode = whileNode.getParent();
-            addFlowControl(scopeNode, whileNode.getExpression(), Token.WHILE);
+            addFlowControl(whileNode.getExpression(), Token.WHILE);
             openWhile = whileCount++;
         }
         if (node.isBlockNode()) {
@@ -198,67 +191,53 @@ public class IntermediateCodeGenerator {
         macrosAndProcesses.append("print_boolean_util ENDP").append("\n");
     }
 
-    private void assignInt(Node.Assignment assignmentNode, int position) {
-        String var = assignmentNode.getId() + "_" + position;
-        String idOrVar = getIdOrVar(assignmentNode.getParent(), assignmentNode.getExpression().getFirst().id(), assignmentNode.getExpression().getFirst().token());
-        if (assignmentNode.getExpression().size() == 1) {
-            addIndentation();
-            code.append("MOV ").append(var).append(", ").append(idOrVar).append("\n");
-            return;
-        }
+    private void assignInt(Node.Assignment assignmentNode, String var) {
+        String idOrVar = assignmentNode.getExpression().getFirst().getFullId();
         addIndentation();
         code.append("MOV AX, ").append(idOrVar).append("\n");
         for (int i = 1; i < assignmentNode.getExpression().size(); i += 2) {
             addIndentation();
-            if (assignmentNode.getExpression().get(i).token() == Token.PLUS) {
+            if (assignmentNode.getExpression().get(i).getToken() == Token.PLUS) {
                 code.append("ADD AX, ");
             }
-            else if (assignmentNode.getExpression().get(i).token() == Token.MINUS) {
+            else if (assignmentNode.getExpression().get(i).getToken() == Token.MINUS) {
                 code.append("SUB AX, ");
             }
-            String value = getIdOrVar(assignmentNode.getParent(), assignmentNode.getExpression().get(i + 1).id(), assignmentNode.getExpression().get(i + 1).token());
+            String value = assignmentNode.getExpression().get(i + 1).getFullId();
             code.append(value).append("\n");
         }
         addIndentation();
         code.append("MOV ").append(var).append(", AX").append("\n");
     }
 
-    private void assignBoolean(Node.Assignment assignmentNode, int position) {
-        String var = assignmentNode.getId() + "_" + position;
-        if (assignmentNode.getExpression().getFirst().token() == Token.IDENTIFIER) {
+    private void assignBoolean(Node.Assignment assignmentNode, String var) {
+        Token firstToken = assignmentNode.getExpression().getFirst().getToken();
+        if (firstToken == Token.IDENTIFIER) {
+            String value = assignmentNode.getExpression().getFirst().getFullId();
             addIndentation();
-            String value = getIdOrVar(assignmentNode, assignmentNode.getExpression().getFirst().id(), assignmentNode.getExpression().getFirst().token());
-            code.append("MOV ").append(var).append(", ").append(value).append("\n");
+            code.append("MOV AL, ").append(value).append("\n");
+            addIndentation();
+            code.append("MOV ").append(var).append(", AL").append("\n");
             return;
         }
         addIndentation();
-        code.append("MOV ").append(var).append(", ")
-                .append(assignmentNode.getExpression().getFirst().token() == Token.TRUE ? "1" : "0").append("\n");
+        code.append("MOV ").append(var).append(", ").append(getBooleanValue(firstToken)).append("\n");
     }
 
-    private void assignString(Node.Assignment assignmentNode, int position) {
-        String var = assignmentNode.getId() + "_" + position;
-        String value = assignmentNode.getExpression().getFirst().id();
+    private void assignString(Node.Assignment assignmentNode, String var) {
+        String value = assignmentNode.getExpression().getFirst().getId();
         for (int i = 0; i < value.length(); i++) {
             addIndentation();
             code.append("MOV ").append(var).append("[").append(i).append("], '").append(value.charAt(i)).append("'").append("\n");
         }
+        addIndentation();
+        code.append("MOV ").append(var).append("[").append(value.length()).append("], '").append("$").append("'").append("\n");
     }
 
-    private SymbolData getSymbolData(Node node, String id) {
-        if (node.getSymbolTable().hasSymbol(id)) {
-            return node.getSymbolTable().getSymbol(id);
-        }
-        if (node.getParent() != null) {
-            return getSymbolData(node.getParent(), id);
-        }
-        return null;
-    }
-
-    private void addFlowControl(Node node, ArrayList<TokenPair> expression, Token flowControlType) {
-        Token firstToken = expression.getFirst().token(), dataType = null;
+    private void addFlowControl(ArrayList<TokenTuple> expression, Token flowControlType) {
+        Token firstToken = expression.getFirst().getToken(), dataType = null;
         if (firstToken == Token.IDENTIFIER) {
-            dataType = Objects.requireNonNull(getSymbolData(node, expression.getFirst().id())).dataType();
+            dataType = symbolDataMap.get(expression.getFirst().getFullId()).dataType();
         }
         else if (firstToken == Token.NUMBER) {
             dataType = Token.INT;
@@ -278,7 +257,7 @@ public class IntermediateCodeGenerator {
 
         int operatorPosition = 0;
         for (int i = 0; i < expression.size(); i++) {
-            if (inverseJumpsMap.containsKey(expression.get(i).token())) {
+            if (inverseJumpsMap.containsKey(expression.get(i).getToken())) {
                 operatorPosition = i;
                 break;
             }
@@ -286,30 +265,30 @@ public class IntermediateCodeGenerator {
 
         if (dataType == Token.INT) {
             addIndentation();
-            String idOrVar = getIdOrVar(node, expression.getFirst().id(), expression.getFirst().token());
+            String idOrVar = expression.getFirst().getFullId();
             code.append("MOV AX, ").append(idOrVar).append("\n");
             for (int i = 1; i < operatorPosition - 1; i += 2) {
                 addIndentation();
-                if (expression.get(i).token() == Token.PLUS) {
+                if (expression.get(i).getToken() == Token.PLUS) {
                     code.append("ADD AX, ");
                 }
-                else if (expression.get(i).token() == Token.MINUS) {
+                else if (expression.get(i).getToken() == Token.MINUS) {
                     code.append("SUB AX, ");
                 }
-                String value = getIdOrVar(node, expression.get(i + 1).id(), expression.get(i + 1).token());
+                String value = expression.get(i + 1).getFullId();
                 code.append(value).append("\n");
             }
             addIndentation();
-            code.append("MOV BX, ").append(expression.get(operatorPosition + 1).id()).append("\n");
+            code.append("MOV BX, ").append(expression.get(operatorPosition + 1).getId()).append("\n");
             for (int i = operatorPosition + 2; i < expression.size(); i += 2) {
                 addIndentation();
-                if (expression.get(i).token() == Token.PLUS) {
+                if (expression.get(i).getToken() == Token.PLUS) {
                     code.append("ADD BX, ");
                 }
-                else if (expression.get(i).token() == Token.MINUS) {
+                else if (expression.get(i).getToken() == Token.MINUS) {
                     code.append("SUB BX, ");
                 }
-                String value = getIdOrVar(node, expression.get(i + 1).id(), expression.get(i + 1).token());
+                String value = expression.get(i + 1).getFullId();
                 code.append(value).append("\n");
             }
             addIndentation();
@@ -317,20 +296,20 @@ public class IntermediateCodeGenerator {
         }
         else if (dataType == Token.BOOLEAN) {
             String leftValue;
-            if (expression.getFirst().token() != Token.IDENTIFIER) {
-                leftValue = getBooleanValue(expression.getFirst().token());
+            if (expression.getFirst().getToken() != Token.IDENTIFIER) {
+                leftValue = getBooleanValue(expression.getFirst().getToken());
             }
             else {
-                leftValue = getIdOrVar(node, expression.getFirst().id(), expression.getFirst().token());
+                leftValue = expression.getFirst().getFullId();
             }
             addIndentation();
             code.append("MOV AL, ").append(leftValue).append("\n");
             String rightValue;
-            if (expression.getFirst().token() != Token.IDENTIFIER) {
-                rightValue = getBooleanValue(expression.getLast().token());
+            if (expression.getFirst().getToken() != Token.IDENTIFIER) {
+                rightValue = getBooleanValue(expression.getLast().getToken());
             }
             else {
-                rightValue = getIdOrVar(node, expression.getLast().id(), expression.getLast().token());
+                rightValue = expression.getLast().getFullId();
             }
             addIndentation();
             code.append("MOV BL, ").append(rightValue).append("\n");
@@ -340,23 +319,15 @@ public class IntermediateCodeGenerator {
 
         addIndentation();
         if (flowControlType == Token.IF) {
-            code.append(inverseJumpsMap.get(expression.get(operatorPosition).token())).append(" if_continue").append(ifCount).append("\n");
+            code.append(inverseJumpsMap.get(expression.get(operatorPosition).getToken())).append(" if_continue").append(ifCount).append("\n");
         }
         else if (flowControlType == Token.WHILE) {
-            code.append(inverseJumpsMap.get(expression.get(operatorPosition).token())).append(" while_continue").append(whileCount).append("\n");
+            code.append(inverseJumpsMap.get(expression.get(operatorPosition).getToken())).append(" while_continue").append(whileCount).append("\n");
         }
     }
 
     private void addIndentation() {
         code.append("\t".repeat(level));
-    }
-
-    private String getIdOrVar(Node node, String id, Token token) {
-        if (token != Token.IDENTIFIER) {
-            return id;
-        }
-        int declarationPosition = Objects.requireNonNull(getSymbolData(node, id)).position();
-        return id + "_" + declarationPosition;
     }
 
     private String getBooleanValue(Token token) {
